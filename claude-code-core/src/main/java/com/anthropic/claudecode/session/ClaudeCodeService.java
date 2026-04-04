@@ -76,6 +76,19 @@ public class ClaudeCodeService {
     }
 
     /**
+     * Send tool results in a session.
+     */
+    public Flux<SDKMessage> sendToolResults(String sessionId, List<ContentBlock.ToolResult> toolResults) {
+        ClaudeSession session = sessions.get(sessionId);
+        if (session == null) {
+            return Flux.error(new IllegalArgumentException("Session not found: " + sessionId));
+        }
+
+        return session.sendToolResults(toolResults)
+            .map(msg -> SDKMessage.fromMessage(msg));
+    }
+
+    /**
      * Get configuration.
      */
     public ClaudeCodeConfig getConfig() {

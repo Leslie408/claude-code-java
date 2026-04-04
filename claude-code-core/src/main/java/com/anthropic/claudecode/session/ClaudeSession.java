@@ -120,6 +120,33 @@ public class ClaudeSession {
     }
 
     /**
+     * Send tool results and get response.
+     */
+    public Flux<Message> sendToolResults(List<ContentBlock.ToolResult> toolResults) {
+        // Add user message with tool results
+        List<ContentBlock> contentBlocks = new ArrayList<>(toolResults);
+        messages.add(new Message.User(contentBlocks));
+        turnCount.incrementAndGet();
+
+        if (apiClient == null) {
+            return Flux.just(new Message.Assistant(
+                "No API key configured. Set ANTHROPIC_API_KEY environment variable or pass --api-key option."
+            ));
+        }
+
+        // Build API request (with empty prompt since we're sending tool results)
+        ApiRequest request = buildRequest("");
+
+        // Make API call and convert response to Flux
+        return Mono.fromFuture(apiClient.sendMessage(request))
+            .map(this::convertResponse)
+            .flux()
+            .onErrorResume(e -> Flux.just(new Message.Assistant(
+                "API Error: " + e.getMessage()
+            )));
+    }
+
+    /**
      * Send a message and get response stream.
      */
     public Flux<Message> sendMessage(String prompt) {

@@ -14,6 +14,8 @@ import com.anthropic.claudecode.types.*;
 import com.anthropic.claudecode.tools.*;
 import com.anthropic.claudecode.commands.*;
 import com.anthropic.claudecode.services.sessions.SessionService;
+import com.anthropic.claudecode.ToolResult;
+import com.anthropic.claudecode.ToolUseContext;
 
 import picocli.CommandLine;
 import picocli.CommandLine.Command;
@@ -24,6 +26,7 @@ import reactor.core.publisher.Flux;
 
 import java.util.*;
 import java.util.concurrent.Callable;
+import java.util.concurrent.CountDownLatch;
 
 /**
  * Claude Code Java CLI entry point.
@@ -152,7 +155,7 @@ public class Main implements Callable<Integer> {
 
         // Handle initial prompt if provided
         if (initialPrompt != null && !initialPrompt.isEmpty()) {
-            handlePrompt(service, sessionId, initialPrompt);
+            handlePrompt(service, sessionId, initialPrompt, toolList);
         }
 
         // Interactive loop
@@ -188,7 +191,7 @@ public class Main implements Callable<Integer> {
                 continue;
             }
 
-            handlePrompt(service, sessionId, input);
+            handlePrompt(service, sessionId, input, toolList);
         }
 
         service.endSession(sessionId);
@@ -196,30 +199,150 @@ public class Main implements Callable<Integer> {
     }
 
     /**
-     * Handle a single prompt.
+     * Handle a single prompt with tool execution loop.
      */
-    private void handlePrompt(ClaudeCodeService service, String sessionId, String prompt) {
+    private void handlePrompt(ClaudeCodeService service, String sessionId, String prompt, List<Tool<?, ?, ?>> toolList) {
         System.out.println();
 
+        // Execute agentic loop
+        int maxIterations = 20;
+        int iteration = 0;
+
+        // First iteration: send user prompt
         Flux<SDKMessage> messages = service.sendMessage(sessionId, prompt);
 
-        messages.subscribe(
-                this::printMessage,
+        while (iteration < maxIterations) {
+            iteration++;
+
+            // Collect response
+            List<SDKMessage> responseMessages = new ArrayList<>();
+            CountDownLatch latch = new CountDownLatch(1);
+
+            messages.subscribe(
+                responseMessages::add,
                 error -> {
                     System.err.println("Error: " + error.getMessage());
                     if (verbose) {
                         error.printStackTrace();
                     }
+                    latch.countDown();
                 },
-                () -> {
-                    if (verbose) {
-                        System.err.println("\n[Turn completed]");
+                latch::countDown
+            );
+
+            try {
+                latch.await(120, java.util.concurrent.TimeUnit.SECONDS);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                return;
+            }
+
+            // Find assistant message
+            SDKMessage.Assistant assistantMsg = null;
+            for (SDKMessage msg : responseMessages) {
+                if (msg instanceof SDKMessage.Assistant a) {
+                    assistantMsg = a;
+                    break;
+                }
+            }
+
+            if (assistantMsg == null) {
+                break;
+            }
+
+            // Print text content
+            for (ContentBlock block : assistantMsg.content()) {
+                if (block instanceof ContentBlock.Text t) {
+                    System.out.println(t.text());
+                }
+            }
+
+            // Check for tool calls
+            List<ContentBlock.ToolUse> toolCalls = new ArrayList<>();
+            for (ContentBlock block : assistantMsg.content()) {
+                if (block instanceof ContentBlock.ToolUse tu) {
+                    toolCalls.add(tu);
+                }
+            }
+
+            if (toolCalls.isEmpty()) {
+                // No tool calls, we're done
+                break;
+            }
+
+            // Execute tools and collect results as ContentBlock.ToolResult
+            List<ContentBlock.ToolResult> toolResults = new ArrayList<>();
+            for (ContentBlock.ToolUse toolUse : toolCalls) {
+                System.out.println("\n[Executing tool: " + toolUse.name() + "]");
+                if (verbose) {
+                    System.err.println("[Input: " + toolUse.input() + "]");
+                }
+
+                String result = executeTool(toolUse.name(), toolUse.id(), toolUse.input(), toolList);
+                System.out.println("[Result: " + truncate(result, 200) + "]");
+
+                // Add tool result as ContentBlock
+                toolResults.add(new ContentBlock.ToolResult(toolUse.id(), result, false));
+            }
+
+            // Send tool results and continue loop
+            messages = service.sendToolResults(sessionId, toolResults);
+        }
+
+        if (verbose) {
+            System.err.println("\n[Turn completed]");
+        }
+    }
+
+    /**
+     * Execute a tool and return the result.
+     */
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    private String executeTool(String toolName, String toolUseId, Map<String, Object> input, List<Tool<?, ?, ?>> toolList) {
+        try {
+            // Find the tool
+            Tool tool = null;
+            if (toolList != null) {
+                for (Tool t : toolList) {
+                    if (t.name().equals(toolName) || t.aliases().contains(toolName)) {
+                        tool = t;
+                        break;
                     }
                 }
-        );
+            }
 
-        // Wait for completion (blocking)
-        messages.blockLast();
+            if (tool == null) {
+                return "Error: Unknown tool: " + toolName;
+            }
+
+            // Execute the tool using raw types to handle dynamic input from API
+            java.util.concurrent.CompletableFuture future =
+                tool.call(input, createToolUseContext(), (t, i, ctx, msg, id) ->
+                    java.util.concurrent.CompletableFuture.completedFuture(
+                        com.anthropic.claudecode.permission.PermissionResult.allow(i)
+                    ), null, progress -> {});
+
+            ToolResult result = (ToolResult) future.get(60, java.util.concurrent.TimeUnit.SECONDS);
+
+            if (result.data() != null) {
+                return result.data().toString();
+            }
+            return "Tool completed with no output";
+        } catch (Exception e) {
+            return "Error executing tool: " + e.getMessage();
+        }
+    }
+
+    /**
+     * Create tool use context.
+     */
+    private ToolUseContext createToolUseContext() {
+        return ToolUseContext.empty();
+    }
+
+    private String truncate(String s, int max) {
+        if (s == null) return "";
+        return s.length() > max ? s.substring(0, max) + "..." : s;
     }
 
     /**
@@ -479,10 +602,5 @@ public class Main implements Callable<Integer> {
 
         System.out.println();
         return sessionId;
-    }
-
-    private String truncate(String s, int max) {
-        if (s == null) return "";
-        return s.length() > max ? s.substring(0, max) + "..." : s;
     }
 }
