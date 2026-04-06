@@ -116,7 +116,7 @@ public class Main implements Callable<Integer> {
 
         // Build service config
         String modelName = getModelName(model);
-        String systemPrompt = buildSystemPrompt();
+        String systemPrompt = buildSystemPrompt(toolList);
 
         ClaudeCodeService.ClaudeCodeConfig config = ClaudeCodeService.ClaudeCodeConfig.builder()
                 .apiKey(key)
@@ -301,11 +301,13 @@ public class Main implements Callable<Integer> {
     private String executeTool(String toolName, String toolUseId, Map<String, Object> input, List<Tool<?, ?, ?>> toolList) {
         try {
             // Find the tool
-            Tool tool = null;
+            AbstractTool tool = null;
             if (toolList != null) {
                 for (Tool t : toolList) {
                     if (t.name().equals(toolName) || t.aliases().contains(toolName)) {
-                        tool = t;
+                        if (t instanceof AbstractTool) {
+                            tool = (AbstractTool) t;
+                        }
                         break;
                     }
                 }
@@ -315,9 +317,39 @@ public class Main implements Callable<Integer> {
                 return "Error: Unknown tool: " + toolName;
             }
 
-            // Execute the tool using raw types to handle dynamic input from API
+            // Parse input first
+            Object parsedInput = tool.parseInput(input);
+
+            // Check if we need to ask for permission
+            if (!permissionMode.equals("bypass") && !permissionMode.equals("bypass-permissions")) {
+                boolean needConfirm = false;
+                String confirmMessage = null;
+
+                // Check if tool is destructive
+                if (tool.isDestructiveUntyped(parsedInput)) {
+                    needConfirm = true;
+                    confirmMessage = "Tool '" + toolName + "' may make destructive changes. Proceed?";
+                } else if (!tool.isReadOnlyUntyped(parsedInput) && !permissionMode.equals("accept-edits")) {
+                    needConfirm = true;
+                    confirmMessage = "Tool '" + toolName + "' will modify files. Proceed?";
+                }
+
+                if (needConfirm) {
+                    System.out.print("\n[Permission] " + confirmMessage + " (y/n): ");
+                    System.out.flush();
+
+                    Scanner confirmScanner = new Scanner(System.in);
+                    String response = confirmScanner.nextLine().trim().toLowerCase();
+
+                    if (!response.equals("y") && !response.equals("yes")) {
+                        return "Permission denied by user";
+                    }
+                }
+            }
+
+            // Execute the tool
             java.util.concurrent.CompletableFuture future =
-                tool.call(input, createToolUseContext(), (t, i, ctx, msg, id) ->
+                tool.executeWithMapInput(input, createToolUseContext(), (t, i, ctx, msg, id) ->
                     java.util.concurrent.CompletableFuture.completedFuture(
                         com.anthropic.claudecode.permission.PermissionResult.allow(i)
                     ), null, progress -> {});
@@ -325,7 +357,26 @@ public class Main implements Callable<Integer> {
             ToolResult result = (ToolResult) future.get(60, java.util.concurrent.TimeUnit.SECONDS);
 
             if (result.data() != null) {
-                return result.data().toString();
+                Object data = result.data();
+                // Handle different output types
+                if (data instanceof String str) {
+                    return str;
+                } else if (data instanceof Map<?, ?> map) {
+                    return formatMapResult(map);
+                } else if (data instanceof List<?> list) {
+                    return formatListResult(list);
+                }
+                // Try to find toResultString method
+                try {
+                    java.lang.reflect.Method method = data.getClass().getMethod("toResultString");
+                    Object methodResult = method.invoke(data);
+                    if (methodResult instanceof String str) {
+                        return str;
+                    }
+                } catch (NoSuchMethodException e) {
+                    // No toResultString method, use toString
+                }
+                return data.toString();
             }
             return "Tool completed with no output";
         } catch (Exception e) {
@@ -343,6 +394,42 @@ public class Main implements Callable<Integer> {
     private String truncate(String s, int max) {
         if (s == null) return "";
         return s.length() > max ? s.substring(0, max) + "..." : s;
+    }
+
+    private String formatMapResult(Map<?, ?> map) {
+        StringBuilder sb = new StringBuilder();
+        for (Map.Entry<?, ?> entry : map.entrySet()) {
+            if (sb.length() > 0) sb.append("\n");
+            Object value = entry.getValue();
+            String valueStr;
+            if (value instanceof String str) {
+                valueStr = str;
+            } else if (value instanceof List<?> list) {
+                valueStr = formatListResult(list);
+            } else if (value instanceof Map<?, ?> m) {
+                valueStr = formatMapResult(m);
+            } else {
+                valueStr = String.valueOf(value);
+            }
+            sb.append(entry.getKey()).append(": ").append(valueStr);
+        }
+        return sb.toString();
+    }
+
+    private String formatListResult(List<?> list) {
+        StringBuilder sb = new StringBuilder();
+        sb.append("[").append(list.size()).append(" items]");
+        for (Object item : list) {
+            sb.append("\n  ");
+            if (item instanceof String str) {
+                sb.append(str);
+            } else if (item instanceof Map<?, ?> m) {
+                sb.append(formatMapResult(m).replace("\n", "\n  "));
+            } else {
+                sb.append(String.valueOf(item));
+            }
+        }
+        return sb.toString();
     }
 
     /**
@@ -414,27 +501,26 @@ public class Main implements Callable<Integer> {
         };
     }
 
-    private String buildSystemPrompt() {
-        return """
-            You are Claude Code, Anthropic's official CLI for Claude.
-            You are an interactive agent that helps users with software engineering tasks.
-            Use the available tools to accomplish the user's goals.
-            Always be helpful, direct, and thorough.
-            """;
+    private String buildSystemPrompt(List<Tool<?, ?, ?>> tools) {
+        return new com.anthropic.claudecode.prompt.SystemPromptBuilder()
+            .cwd(cwd)
+            .tools(tools)
+            .permissionMode(parsePermissionMode(permissionMode))
+            .build();
     }
 
-    private ClaudeCodeService.PermissionMode parsePermissionMode(String mode) {
+    private PermissionMode parsePermissionMode(String mode) {
         String lower = mode.toLowerCase();
-        if ("accept-edits".equals(lower)) {
-            return ClaudeCodeService.PermissionMode.ACCEPT_EDITS;
-        } else if ("bypass".equals(lower) || "bypass-permissions".equals(lower)) {
-            return ClaudeCodeService.PermissionMode.BYPASS_PERMISSIONS;
+        if ("accept-edits".equals(lower) || "acceptedits".equals(lower)) {
+            return PermissionMode.ACCEPT_EDITS;
+        } else if ("bypass".equals(lower) || "bypass-permissions".equals(lower) || "bypasspermissions".equals(lower)) {
+            return PermissionMode.BYPASS_PERMISSIONS;
         } else if ("plan".equals(lower)) {
-            return ClaudeCodeService.PermissionMode.PLAN;
+            return PermissionMode.PLAN;
         } else if ("auto".equals(lower)) {
-            return ClaudeCodeService.PermissionMode.AUTO;
+            return PermissionMode.AUTO;
         } else {
-            return ClaudeCodeService.PermissionMode.DEFAULT;
+            return PermissionMode.DEFAULT;
         }
     }
 

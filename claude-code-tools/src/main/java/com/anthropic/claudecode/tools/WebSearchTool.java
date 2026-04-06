@@ -283,6 +283,16 @@ public class WebSearchTool extends AbstractTool<WebSearchTool.Input, WebSearchTo
         return input.query();
     }
 
+    @Override
+    public Input parseInput(Map<String, Object> input) {
+        String query = (String) input.get("query");
+        @SuppressWarnings("unchecked")
+        List<String> allowedDomains = (List<String>) input.get("allowed_domains");
+        @SuppressWarnings("unchecked")
+        List<String> blockedDomains = (List<String>) input.get("blocked_domains");
+        return new Input(query, allowedDomains, blockedDomains);
+    }
+
     // ==================== Input/Output/Progress ====================
 
     public record Input(

@@ -168,6 +168,13 @@ public class GlobTool extends AbstractTool<GlobTool.Input, GlobTool.Output, Glob
         return input.pattern();
     }
 
+    @Override
+    public Input parseInput(Map<String, Object> input) {
+        String pattern = (String) input.get("pattern");
+        String path = (String) input.get("path");
+        return new Input(pattern, path);
+    }
+
     // ==================== Input/Output/Progress ====================
 
     public record Input(

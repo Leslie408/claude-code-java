@@ -138,6 +138,16 @@ public class ListTool extends AbstractTool<ListTool.Input, ListTool.Output, Tool
         return CompletableFuture.completedFuture(PermissionResult.allow(input));
     }
 
+    @Override
+    public Input parseInput(Map<String, Object> input) {
+        String path = (String) input.get("path");
+        boolean showAll = input.get("all") != null &&
+            Boolean.TRUE.equals(input.get("all"));
+        boolean showLong = input.get("long") != null &&
+            Boolean.TRUE.equals(input.get("long"));
+        return new Input(path, showAll, showLong);
+    }
+
     /**
      * Input for list tool.
      */

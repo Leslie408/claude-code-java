@@ -223,6 +223,16 @@ public class FileEditTool extends AbstractTool<FileEditTool.Input, FileEditTool.
         return "Replace " + oldLen + " chars with " + newLen + " chars" + suffix;
     }
 
+    @Override
+    public Input parseInput(Map<String, Object> input) {
+        String filePath = (String) input.get("file_path");
+        String oldString = (String) input.get("old_string");
+        String newString = (String) input.get("new_string");
+        boolean replaceAll = input.get("replace_all") != null &&
+            Boolean.TRUE.equals(input.get("replace_all"));
+        return new Input(filePath, oldString, newString, replaceAll);
+    }
+
     // ==================== Input/Output/Progress ====================
 
     public record Input(

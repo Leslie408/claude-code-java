@@ -22,6 +22,15 @@ public final class CronCreateTool extends AbstractTool<CronCreateTool.Input, Cro
         super("CronCreate", "Schedule a recurring or one-shot prompt");
     }
 
+    @Override
+    public Input parseInput(Map<String, Object> input) {
+        String cron = (String) input.get("cron");
+        String prompt = (String) input.get("prompt");
+        Boolean recurring = (Boolean) input.get("recurring");
+        Boolean durable = (Boolean) input.get("durable");
+        return new Input(cron, prompt, recurring, durable);
+    }
+
     /**
      * Input schema.
      */

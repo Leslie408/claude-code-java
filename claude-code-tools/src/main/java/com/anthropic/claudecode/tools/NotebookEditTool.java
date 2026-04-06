@@ -16,33 +16,13 @@ import java.util.function.Consumer;
 /**
  * Notebook edit tool for modifying Jupyter notebooks.
  */
-public class NotebookEditTool implements Tool<NotebookEditTool.Input, Object, ToolProgressData> {
+public class NotebookEditTool extends AbstractTool<NotebookEditTool.Input, Object, ToolProgressData> {
 
-    public record Input(
-            String notebookPath,
-            String cellId,
-            String cellType,
-            String editMode,
-            String newSource,
-            int cellNumber
-    ) {
-        public Input(String notebookPath, String newSource) {
-            this(notebookPath, null, null, "replace", newSource, -1);
-        }
+    public NotebookEditTool() {
+        super("NotebookEdit", List.of("notebook_edit"), createSchema());
     }
 
-    @Override
-    public String name() {
-        return "NotebookEdit";
-    }
-
-    @Override
-    public String description() {
-        return "Edit Jupyter notebook cells";
-    }
-
-    @Override
-    public Map<String, Object> inputSchema() {
+    private static Map<String, Object> createSchema() {
         Map<String, Object> properties = new LinkedHashMap<>();
         properties.put("notebookPath", SchemaUtils.stringSchema());
         properties.put("cellId", SchemaUtils.stringSchema());
@@ -51,6 +31,11 @@ public class NotebookEditTool implements Tool<NotebookEditTool.Input, Object, To
         properties.put("newSource", SchemaUtils.stringSchema());
         properties.put("cellNumber", SchemaUtils.integerSchema());
         return SchemaUtils.objectSchema(properties, List.of("notebookPath"));
+    }
+
+    @Override
+    public String description() {
+        return "Edit Jupyter notebook cells";
     }
 
     @Override
@@ -133,5 +118,29 @@ public class NotebookEditTool implements Tool<NotebookEditTool.Input, Object, To
 
     private void deleteCell(Map<String, Object> notebook, Input input) {
         // Implementation
+    }
+
+    @Override
+    public Input parseInput(Map<String, Object> input) {
+        String notebookPath = (String) input.get("notebook_path");
+        String cellId = (String) input.get("cell_id");
+        String cellType = (String) input.get("cell_type");
+        String editMode = (String) input.get("edit_mode");
+        String newSource = (String) input.get("new_source");
+        Integer cellNumber = input.get("cell_number") != null ? ((Number) input.get("cell_number")).intValue() : -1;
+        return new Input(notebookPath, cellId, cellType, editMode != null ? editMode : "replace", newSource, cellNumber);
+    }
+
+    public record Input(
+            String notebookPath,
+            String cellId,
+            String cellType,
+            String editMode,
+            String newSource,
+            int cellNumber
+    ) {
+        public Input(String notebookPath, String newSource) {
+            this(notebookPath, null, null, "replace", newSource, -1);
+        }
     }
 }

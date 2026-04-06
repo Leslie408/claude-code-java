@@ -28,6 +28,21 @@ public final class TodoWriteTool extends AbstractTool<TodoWriteTool.Input, TodoW
         String status
     ) {}
 
+    @Override
+    @SuppressWarnings("unchecked")
+    public Input parseInput(Map<String, Object> input) {
+        List<Map<String, Object>> todosRaw = (List<Map<String, Object>>) input.get("todos");
+        List<TodoItem> todos = new ArrayList<>();
+        if (todosRaw != null) {
+            for (Map<String, Object> item : todosRaw) {
+                String content = (String) item.get("content");
+                String status = (String) item.get("status");
+                todos.add(new TodoItem(content, status));
+            }
+        }
+        return new Input(todos);
+    }
+
     /**
      * Input schema.
      */

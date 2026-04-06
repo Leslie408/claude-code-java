@@ -20,6 +20,16 @@ public final class TaskCreateTool extends AbstractTool<TaskCreateTool.Input, Tas
         super(TOOL_NAME, "Create a task in the task list");
     }
 
+    @Override
+    @SuppressWarnings("unchecked")
+    public Input parseInput(Map<String, Object> input) {
+        String subject = (String) input.get("subject");
+        String description = (String) input.get("description");
+        String activeForm = (String) input.get("activeForm");
+        Map<String, Object> metadata = (Map<String, Object>) input.get("metadata");
+        return new Input(subject, description, activeForm, metadata);
+    }
+
     /**
      * Input schema.
      */

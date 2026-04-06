@@ -28,6 +28,12 @@ public final class EnterWorktreeTool extends AbstractTool<EnterWorktreeTool.Inpu
         String name
     ) {}
 
+    @Override
+    public Input parseInput(Map<String, Object> input) {
+        String name = (String) input.get("name");
+        return new Input(name);
+    }
+
     /**
      * Output schema.
      */

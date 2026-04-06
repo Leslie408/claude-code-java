@@ -105,6 +105,14 @@ public class MkdirTool extends AbstractTool<MkdirTool.Input, MkdirTool.Output, T
         );
     }
 
+    @Override
+    public Input parseInput(Map<String, Object> input) {
+        String path = (String) input.get("path");
+        boolean createParents = input.get("parents") != null &&
+            Boolean.TRUE.equals(input.get("parents"));
+        return new Input(path, createParents);
+    }
+
     /**
      * Input for mkdir tool.
      */

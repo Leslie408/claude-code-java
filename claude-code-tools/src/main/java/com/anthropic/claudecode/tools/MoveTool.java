@@ -124,6 +124,15 @@ public class MoveTool extends AbstractTool<MoveTool.Input, MoveTool.Output, Tool
         );
     }
 
+    @Override
+    public Input parseInput(Map<String, Object> input) {
+        String source = (String) input.get("source");
+        String destination = (String) input.get("destination");
+        boolean overwrite = input.get("overwrite") != null &&
+            Boolean.TRUE.equals(input.get("overwrite"));
+        return new Input(source, destination, overwrite);
+    }
+
     /**
      * Input for move tool.
      */

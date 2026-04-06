@@ -131,6 +131,13 @@ public class SkillTool extends AbstractTool<SkillTool.Input, SkillTool.Output, S
         return "/" + input.skill() + (input.args() != null ? " " + input.args() : "");
     }
 
+    @Override
+    public Input parseInput(Map<String, Object> input) {
+        String skill = (String) input.get("skill");
+        String args = (String) input.get("args");
+        return new Input(skill, args);
+    }
+
     // ==================== Input/Output/Progress ====================
 
     public record Input(

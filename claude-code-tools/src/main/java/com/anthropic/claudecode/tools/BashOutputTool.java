@@ -17,25 +17,21 @@ import java.util.function.Consumer;
 /**
  * Bash output tool for reading background command output.
  */
-public class BashOutputTool implements Tool<BashOutputTool.Input, Object, ToolProgressData> {
+public class BashOutputTool extends AbstractTool<BashOutputTool.Input, Object, ToolProgressData> {
 
-    public record Input(String bashId) {}
+    public BashOutputTool() {
+        super("BashOutput", List.of("bash_output"), createSchema());
+    }
 
-    @Override
-    public String name() {
-        return "BashOutput";
+    private static Map<String, Object> createSchema() {
+        Map<String, Object> properties = new LinkedHashMap<>();
+        properties.put("bashId", SchemaUtils.stringSchema());
+        return SchemaUtils.objectSchema(properties, List.of("bashId"));
     }
 
     @Override
     public String description() {
         return "Get output from a background bash command";
-    }
-
-    @Override
-    public Map<String, Object> inputSchema() {
-        Map<String, Object> properties = new LinkedHashMap<>();
-        properties.put("bashId", SchemaUtils.stringSchema());
-        return SchemaUtils.objectSchema(properties, List.of("bashId"));
     }
 
     @Override
@@ -135,4 +131,12 @@ public class BashOutputTool implements Tool<BashOutputTool.Input, Object, ToolPr
     public boolean isReadOnly(Input input) {
         return true;
     }
+
+    @Override
+    public Input parseInput(Map<String, Object> input) {
+        String bashId = (String) input.get("bashId");
+        return new Input(bashId);
+    }
+
+    public record Input(String bashId) {}
 }

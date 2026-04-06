@@ -392,6 +392,15 @@ public class FileReadTool extends AbstractTool<FileReadTool.Input, FileReadTool.
         return "Reading " + filename;
     }
 
+    @Override
+    public Input parseInput(Map<String, Object> input) {
+        String filePath = (String) input.get("file_path");
+        Integer limit = input.get("limit") != null ? ((Number) input.get("limit")).intValue() : null;
+        Integer offset = input.get("offset") != null ? ((Number) input.get("offset")).intValue() : null;
+        String pages = (String) input.get("pages");
+        return new Input(filePath, limit, offset, pages);
+    }
+
     // ==================== Input/Output/Progress ====================
 
     public record Input(

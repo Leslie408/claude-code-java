@@ -220,6 +220,17 @@ public class CronTool extends AbstractTool<CronTool.Input, CronTool.Output, Cron
         return "Scheduling cron job";
     }
 
+    @Override
+    public Input parseInput(Map<String, Object> input) {
+        String action = (String) input.get("action");
+        String cron = (String) input.get("cron");
+        String prompt = (String) input.get("prompt");
+        Boolean recurring = (Boolean) input.get("recurring");
+        Boolean durable = (Boolean) input.get("durable");
+        String id = (String) input.get("id");
+        return new Input(action, cron, prompt, recurring, durable, id);
+    }
+
     // ==================== Input/Output/Progress ====================
 
     public record Input(

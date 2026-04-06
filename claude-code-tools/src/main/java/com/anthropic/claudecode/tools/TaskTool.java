@@ -358,6 +358,21 @@ public class TaskTool extends AbstractTool<TaskTool.Input, TaskTool.Output, Task
         return "Managing tasks";
     }
 
+    @Override
+    @SuppressWarnings("unchecked")
+    public Input parseInput(Map<String, Object> input) {
+        String action = (String) input.get("action");
+        String taskId = (String) input.get("taskId");
+        String subject = (String) input.get("subject");
+        String description = (String) input.get("description");
+        String activeForm = (String) input.get("activeForm");
+        String status = (String) input.get("status");
+        String owner = (String) input.get("owner");
+        List<String> addBlockedBy = (List<String>) input.get("addBlockedBy");
+        List<String> addBlocks = (List<String>) input.get("addBlocks");
+        return new Input(action, taskId, subject, description, activeForm, status, owner, addBlockedBy, addBlocks);
+    }
+
     // ==================== Input/Output/Progress ====================
 
     public record Input(

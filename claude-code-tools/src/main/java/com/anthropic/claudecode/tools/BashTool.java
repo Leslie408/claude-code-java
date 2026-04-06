@@ -93,6 +93,19 @@ public class BashTool extends AbstractTool<BashTool.Input, BashTool.Output, Bash
 
                 Process process = pb.start();
 
+                // Handle background execution
+                if (input.runInBackground()) {
+                    String processId = com.anthropic.claudecode.state.BackgroundProcessRegistry.register(
+                        process, input.command(), input.cwd() != null ? input.cwd() : System.getProperty("user.dir")
+                    );
+                    return ToolResult.of(new Output(
+                        "Background process started with ID: " + processId,
+                        "",
+                        0,
+                        false
+                    ));
+                }
+
                 StringBuilder output = new StringBuilder();
                 BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()));
                 String line;
@@ -181,6 +194,17 @@ public class BashTool extends AbstractTool<BashTool.Input, BashTool.Output, Bash
             return desc.length() > 50 ? desc.substring(0, 50) + "..." : desc;
         }
         return "Running shell command";
+    }
+
+    @Override
+    public Input parseInput(Map<String, Object> input) {
+        String command = (String) input.get("command");
+        Long timeout = input.get("timeout") != null ? ((Number) input.get("timeout")).longValue() : null;
+        String description = (String) input.get("description");
+        String cwd = (String) input.get("cwd");
+        boolean runInBackground = input.get("run_in_background") != null &&
+            Boolean.TRUE.equals(input.get("run_in_background"));
+        return new Input(command, timeout, description, cwd, runInBackground);
     }
 
     private boolean isWindows() {

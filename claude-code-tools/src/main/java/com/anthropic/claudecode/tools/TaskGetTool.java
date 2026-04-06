@@ -20,6 +20,12 @@ public final class TaskGetTool extends AbstractTool<TaskGetTool.Input, TaskGetTo
         super(TOOL_NAME, "Retrieve a task by ID");
     }
 
+    @Override
+    public Input parseInput(Map<String, Object> input) {
+        String taskId = (String) input.get("taskId");
+        return new Input(taskId);
+    }
+
     /**
      * Input schema.
      */

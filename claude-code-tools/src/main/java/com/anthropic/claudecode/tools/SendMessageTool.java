@@ -20,6 +20,14 @@ public final class SendMessageTool extends AbstractTool<SendMessageTool.Input, S
         super(TOOL_NAME, "Send messages to agent teammates");
     }
 
+    @Override
+    public Input parseInput(Map<String, Object> input) {
+        String to = (String) input.get("to");
+        String summary = (String) input.get("summary");
+        Object message = input.get("message");
+        return new Input(to, summary, message);
+    }
+
     /**
      * Input schema.
      */

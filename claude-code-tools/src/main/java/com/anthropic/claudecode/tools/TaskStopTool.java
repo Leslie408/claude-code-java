@@ -25,6 +25,13 @@ public final class TaskStopTool extends AbstractTool<TaskStopTool.Input, TaskSto
         return List.of(LEGACY_NAME);
     }
 
+    @Override
+    public Input parseInput(Map<String, Object> input) {
+        String taskId = (String) input.get("task_id");
+        String shellId = (String) input.get("shell_id");
+        return new Input(taskId, shellId);
+    }
+
     /**
      * Input schema.
      */

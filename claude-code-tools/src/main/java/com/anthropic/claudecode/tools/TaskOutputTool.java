@@ -26,6 +26,17 @@ public final class TaskOutputTool extends AbstractTool<TaskOutputTool.Input, Tas
         return ALIASES;
     }
 
+    @Override
+    public Input parseInput(Map<String, Object> input) {
+        String taskId = (String) input.get("task_id");
+        boolean block = input.get("block") != null &&
+            Boolean.TRUE.equals(input.get("block"));
+        int timeout = input.get("timeout") != null
+            ? ((Number) input.get("timeout")).intValue()
+            : 30000;
+        return new Input(taskId, block, timeout);
+    }
+
     /**
      * Input schema.
      */

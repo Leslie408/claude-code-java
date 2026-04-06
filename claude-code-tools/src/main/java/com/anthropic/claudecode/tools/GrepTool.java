@@ -310,6 +310,24 @@ public class GrepTool extends AbstractTool<GrepTool.Input, GrepTool.Output, Grep
         return input.pattern();
     }
 
+    @Override
+    public Input parseInput(Map<String, Object> input) {
+        String pattern = (String) input.get("pattern");
+        String path = (String) input.get("path");
+        String glob = (String) input.get("glob");
+        String type = (String) input.get("type");
+        String outputMode = (String) input.get("output_mode");
+        boolean caseInsensitive = input.get("-i") != null || Boolean.TRUE.equals(input.get("case_insensitive"));
+        boolean multiline = Boolean.TRUE.equals(input.get("multiline"));
+        Integer headLimit = input.get("head_limit") != null ? ((Number) input.get("head_limit")).intValue() : null;
+        Integer context = input.get("context") != null ? ((Number) input.get("context")).intValue() : null;
+        return new Input(pattern, path, glob, type,
+            outputMode != null ? outputMode : "files_with_matches",
+            caseInsensitive, multiline,
+            headLimit != null ? headLimit : 250,
+            context);
+    }
+
     // ==================== Input/Output/Progress ====================
 
     public record Input(

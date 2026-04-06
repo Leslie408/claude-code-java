@@ -29,6 +29,13 @@ public final class ExitWorktreeTool extends AbstractTool<ExitWorktreeTool.Input,
         Boolean discard_changes
     ) {}
 
+    @Override
+    public Input parseInput(Map<String, Object> input) {
+        String action = (String) input.get("action");
+        Boolean discardChanges = (Boolean) input.get("discard_changes");
+        return new Input(action, discardChanges);
+    }
+
     /**
      * Output schema.
      */

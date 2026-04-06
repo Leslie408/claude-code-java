@@ -224,6 +224,13 @@ public class WebFetchTool extends AbstractTool<WebFetchTool.Input, WebFetchTool.
         return "Fetching " + input.url();
     }
 
+    @Override
+    public Input parseInput(Map<String, Object> input) {
+        String url = (String) input.get("url");
+        String prompt = (String) input.get("prompt");
+        return new Input(url, prompt);
+    }
+
     // ==================== Input/Output/Progress ====================
 
     public record Input(

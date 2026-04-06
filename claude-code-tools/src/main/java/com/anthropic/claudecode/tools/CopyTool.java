@@ -153,6 +153,17 @@ public class CopyTool extends AbstractTool<CopyTool.Input, CopyTool.Output, Tool
         );
     }
 
+    @Override
+    public Input parseInput(Map<String, Object> input) {
+        String source = (String) input.get("source");
+        String destination = (String) input.get("destination");
+        boolean overwrite = input.get("overwrite") != null &&
+            Boolean.TRUE.equals(input.get("overwrite"));
+        boolean recursive = input.get("recursive") != null &&
+            Boolean.TRUE.equals(input.get("recursive"));
+        return new Input(source, destination, overwrite, recursive);
+    }
+
     /**
      * Input for copy tool.
      */

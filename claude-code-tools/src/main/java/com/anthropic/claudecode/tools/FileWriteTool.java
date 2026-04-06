@@ -154,6 +154,13 @@ public class FileWriteTool extends AbstractTool<FileWriteTool.Input, FileWriteTo
         return filename + " (" + lines + " lines)";
     }
 
+    @Override
+    public Input parseInput(Map<String, Object> input) {
+        String filePath = (String) input.get("file_path");
+        String content = (String) input.get("content");
+        return new Input(filePath, content);
+    }
+
     // ==================== Input/Output/Progress ====================
 
     public record Input(

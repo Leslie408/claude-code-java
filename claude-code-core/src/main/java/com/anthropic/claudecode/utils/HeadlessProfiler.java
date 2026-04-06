@@ -22,7 +22,7 @@ public final class HeadlessProfiler {
     private static final boolean STATSIG_LOGGING_SAMPLED = isSampled();
 
     // Detailed profiling mode
-    private static final boolean DETAILED_PROFILING = EnvUtils.isEnvTruthy(System.getenv("CLAUDE_CODE_PROFILE_STARTUP"));
+    private static final boolean DETAILED_PROFILING = EnvUtils.isEnvTruthy("CLAUDE_CODE_PROFILE_STARTUP");
 
     // Enable profiling if either detailed mode OR sampled
     private static final boolean SHOULD_PROFILE = DETAILED_PROFILING || STATSIG_LOGGING_SAMPLED;

@@ -106,6 +106,14 @@ public class DiffTool extends AbstractTool<DiffTool.Input, DiffTool.Output, Tool
         return CompletableFuture.completedFuture(PermissionResult.allow(input));
     }
 
+    @Override
+    public Input parseInput(Map<String, Object> input) {
+        String file1 = (String) input.get("file1");
+        String file2 = (String) input.get("file2");
+        String mode = (String) input.get("mode");
+        return new Input(file1, file2, mode);
+    }
+
     /**
      * Input for diff tool.
      */

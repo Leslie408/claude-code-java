@@ -152,56 +152,100 @@ public class HttpClient {
 
         // Add user/assistant messages
         if (req.messages() != null && !req.messages().isEmpty()) {
+            boolean first = true;
             for (int i = 0; i < req.messages().size(); i++) {
-                if (i > 0) sb.append(",");
                 Map<String, Object> msg = req.messages().get(i);
                 String role = (String) msg.get("role");
-                sb.append("{\"role\":\"").append(escapeJson(role != null ? role : "user")).append("\"");
 
-                // Handle content
+                // Handle content - check if it contains tool_result blocks
                 Object contentObj = msg.get("content");
-                if (contentObj instanceof String text) {
-                    sb.append(",\"content\":\"").append(escapeJson(text)).append("\"");
-                } else if (contentObj instanceof List<?> parts) {
-                    sb.append(",\"content\":").append(toJson(parts));
-                } else if (contentObj != null) {
-                    sb.append(",\"content\":\"").append(escapeJson(contentObj.toString())).append("\"");
-                }
 
-                // Handle tool calls in assistant message
-                Object toolCallsObj = msg.get("tool_calls");
-                if (toolCallsObj instanceof List<?> toolCalls) {
-                    sb.append(",\"tool_calls\":[");
-                    for (int j = 0; j < toolCalls.size(); j++) {
-                        if (j > 0) sb.append(",");
-                        if (toolCalls.get(j) instanceof Map<?, ?> tc) {
-                            String tcId = (String) tc.get("id");
-                            String tcType = (String) tc.get("type");
-                            if (tcType == null) tcType = "function";
+                // Check for tool_result in content list (for OpenAI format, these need to be separate messages)
+                if (contentObj instanceof List<?> parts) {
+                    for (Object part : parts) {
+                        if (part instanceof Map<?, ?> partMap) {
+                            String partType = (String) partMap.get("type");
+                            if ("tool_result".equals(partType)) {
+                                // Convert to OpenAI tool message format
+                                if (!first) sb.append(",");
+                                first = false;
 
-                            Object funcObj = tc.get("function");
-                            if (funcObj instanceof Map<?, ?> func) {
-                                String funcName = (String) func.get("name");
-                                Object funcArgs = func.get("arguments");
+                                String toolUseId = (String) partMap.get("tool_use_id");
+                                Object toolContent = partMap.get("content");
 
-                                sb.append("{\"id\":\"").append(escapeJson(tcId != null ? tcId : "")).append("\"");
-                                sb.append(",\"type\":\"").append(tcType).append("\"");
-                                sb.append(",\"function\":{\"name\":\"").append(escapeJson(funcName != null ? funcName : "")).append("\"");
-                                sb.append(",\"arguments\":").append(funcArgs != null ? funcArgs.toString() : "{}");
-                                sb.append("}}");
+                                sb.append("{\"role\":\"tool\"");
+                                sb.append(",\"tool_call_id\":\"").append(escapeJson(toolUseId != null ? toolUseId : "")).append("\"");
+                                sb.append(",\"content\":");
+                                if (toolContent instanceof String str) {
+                                    sb.append("\"").append(escapeJson(str)).append("\"");
+                                } else {
+                                    sb.append(toJson(toolContent));
+                                }
+                                sb.append("}");
                             }
                         }
                     }
-                    sb.append("]");
-                }
+                    // Also handle non-tool_result parts as regular message
+                    List<Object> nonToolParts = new ArrayList<>();
+                    for (Object part : parts) {
+                        if (part instanceof Map<?, ?> partMap) {
+                            String partType = (String) partMap.get("type");
+                            if (!"tool_result".equals(partType)) {
+                                nonToolParts.add(part);
+                            }
+                        } else {
+                            nonToolParts.add(part);
+                        }
+                    }
+                    if (!nonToolParts.isEmpty()) {
+                        if (!first) sb.append(",");
+                        first = false;
+                        sb.append("{\"role\":\"").append(escapeJson(role != null ? role : "user")).append("\"");
+                        sb.append(",\"content\":").append(toJson(nonToolParts));
+                        sb.append("}");
+                    }
+                } else {
+                    // Regular message (not a list of content blocks with tool_result)
+                    if (!first) sb.append(",");
+                    first = false;
 
-                // Handle tool result in tool message
-                String toolCallId = (String) msg.get("tool_call_id");
-                if ("tool".equals(role) && toolCallId != null) {
-                    sb.append(",\"tool_call_id\":\"").append(escapeJson(toolCallId)).append("\"");
-                }
+                    sb.append("{\"role\":\"").append(escapeJson(role != null ? role : "user")).append("\"");
 
-                sb.append("}");
+                    if (contentObj instanceof String text) {
+                        sb.append(",\"content\":\"").append(escapeJson(text)).append("\"");
+                    } else if (contentObj != null) {
+                        sb.append(",\"content\":\"").append(escapeJson(contentObj.toString())).append("\"");
+                    }
+
+                    // Handle tool calls in assistant message
+                    Object toolCallsObj = msg.get("tool_calls");
+                    if (toolCallsObj instanceof List<?> toolCalls) {
+                        sb.append(",\"tool_calls\":[");
+                        for (int j = 0; j < toolCalls.size(); j++) {
+                            if (j > 0) sb.append(",");
+                            if (toolCalls.get(j) instanceof Map<?, ?> tc) {
+                                String tcId = (String) tc.get("id");
+                                String tcType = (String) tc.get("type");
+                                if (tcType == null) tcType = "function";
+
+                                Object funcObj = tc.get("function");
+                                if (funcObj instanceof Map<?, ?> func) {
+                                    String funcName = (String) func.get("name");
+                                    Object funcArgs = func.get("arguments");
+
+                                    sb.append("{\"id\":\"").append(escapeJson(tcId != null ? tcId : "")).append("\"");
+                                    sb.append(",\"type\":\"").append(tcType).append("\"");
+                                    sb.append(",\"function\":{\"name\":\"").append(escapeJson(funcName != null ? funcName : "")).append("\"");
+                                    sb.append(",\"arguments\":").append(funcArgs != null ? funcArgs.toString() : "{}");
+                                    sb.append("}}");
+                                }
+                            }
+                        }
+                        sb.append("]");
+                    }
+
+                    sb.append("}");
+                }
             }
         }
         sb.append("]");

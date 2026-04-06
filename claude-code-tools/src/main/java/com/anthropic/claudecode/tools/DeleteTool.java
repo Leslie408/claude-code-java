@@ -150,6 +150,16 @@ public class DeleteTool extends AbstractTool<DeleteTool.Input, DeleteTool.Output
         );
     }
 
+    @Override
+    public Input parseInput(Map<String, Object> input) {
+        String path = (String) input.get("path");
+        boolean recursive = input.get("recursive") != null &&
+            Boolean.TRUE.equals(input.get("recursive"));
+        boolean force = input.get("force") != null &&
+            Boolean.TRUE.equals(input.get("force"));
+        return new Input(path, recursive, force);
+    }
+
     /**
      * Input for delete tool.
      */

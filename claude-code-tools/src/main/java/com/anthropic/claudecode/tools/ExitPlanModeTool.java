@@ -121,6 +121,16 @@ public class ExitPlanModeTool extends AbstractTool<ExitPlanModeTool.Input, ExitP
         return "Requesting plan approval";
     }
 
+    @Override
+    @SuppressWarnings("unchecked")
+    public Input parseInput(Map<String, Object> input) {
+        String planFileStr = (String) input.get("planFile");
+        Path planFile = planFileStr != null ? Paths.get(planFileStr) : null;
+        String planContent = (String) input.get("planContent");
+        Map<String, Object> metadata = (Map<String, Object>) input.get("metadata");
+        return new Input(planFile, planContent, metadata);
+    }
+
     // ==================== Input/Output/Progress ====================
 
     public record Input(

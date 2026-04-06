@@ -96,21 +96,6 @@ public class ClaudeCodeService {
     }
 
     /**
-     * Permission mode enum.
-     */
-    public enum PermissionMode {
-        DEFAULT("default"),
-        ACCEPT_EDITS("accept-edits"),
-        BYPASS_PERMISSIONS("bypass-permissions"),
-        PLAN("plan"),
-        AUTO("auto");
-
-        private final String value;
-        PermissionMode(String value) { this.value = value; }
-        public String getValue() { return value; }
-    }
-
-    /**
      * Configuration for Claude Code service.
      */
     public static class ClaudeCodeConfig {

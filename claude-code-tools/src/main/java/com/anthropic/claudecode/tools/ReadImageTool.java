@@ -17,25 +17,21 @@ import java.util.function.Consumer;
 /**
  * Read image tool for reading image files.
  */
-public class ReadImageTool implements Tool<ReadImageTool.Input, Object, ToolProgressData> {
+public class ReadImageTool extends AbstractTool<ReadImageTool.Input, Object, ToolProgressData> {
 
-    public record Input(String filePath) {}
+    public ReadImageTool() {
+        super("ReadImage", List.of("read_image"), createSchema());
+    }
 
-    @Override
-    public String name() {
-        return "ReadImage";
+    private static Map<String, Object> createSchema() {
+        Map<String, Object> properties = new LinkedHashMap<>();
+        properties.put("filePath", SchemaUtils.stringSchema());
+        return SchemaUtils.objectSchema(properties, List.of("filePath"));
     }
 
     @Override
     public String description() {
         return "Read and display image files (PNG, JPG, etc.)";
-    }
-
-    @Override
-    public Map<String, Object> inputSchema() {
-        Map<String, Object> properties = new LinkedHashMap<>();
-        properties.put("filePath", SchemaUtils.stringSchema());
-        return SchemaUtils.objectSchema(properties, List.of("filePath"));
     }
 
     @Override
@@ -106,4 +102,12 @@ public class ReadImageTool implements Tool<ReadImageTool.Input, Object, ToolProg
         }
         return "";
     }
+
+    @Override
+    public Input parseInput(Map<String, Object> input) {
+        String filePath = (String) input.get("file_path");
+        return new Input(filePath);
+    }
+
+    public record Input(String filePath) {}
 }

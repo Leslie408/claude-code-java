@@ -21,6 +21,21 @@ public final class TaskUpdateTool extends AbstractTool<TaskUpdateTool.Input, Tas
         super(TOOL_NAME, "Update a task");
     }
 
+    @Override
+    @SuppressWarnings("unchecked")
+    public Input parseInput(Map<String, Object> input) {
+        String taskId = (String) input.get("taskId");
+        String subject = (String) input.get("subject");
+        String description = (String) input.get("description");
+        String activeForm = (String) input.get("activeForm");
+        String status = (String) input.get("status");
+        List<String> addBlocks = (List<String>) input.get("addBlocks");
+        List<String> addBlockedBy = (List<String>) input.get("addBlockedBy");
+        String owner = (String) input.get("owner");
+        Map<String, Object> metadata = (Map<String, Object>) input.get("metadata");
+        return new Input(taskId, subject, description, activeForm, status, addBlocks, addBlockedBy, owner, metadata);
+    }
+
     /**
      * Input schema.
      */

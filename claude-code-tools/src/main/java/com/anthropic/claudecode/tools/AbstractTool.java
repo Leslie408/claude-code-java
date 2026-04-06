@@ -59,6 +59,33 @@ public abstract class AbstractTool<I, O, P extends ToolProgressData> implements 
         return schema;
     }
 
+    /**
+     * Parse input from a Map (received from API) to the tool's input type.
+     * Subclasses should override this to enable dynamic tool invocation.
+     * Default implementation throws UnsupportedOperationException.
+     */
+    @SuppressWarnings("unchecked")
+    public I parseInput(Map<String, Object> input) {
+        throw new UnsupportedOperationException(
+            "Tool " + toolName + " does not implement parseInput. " +
+            "Please add parseInput method to enable dynamic invocation."
+        );
+    }
+
+    /**
+     * Execute the tool with Map input (received from API).
+     * This parses the input first, then calls the typed execute method.
+     */
+    public CompletableFuture<ToolResult<O>> executeWithMapInput(
+            Map<String, Object> input,
+            ToolUseContext context,
+            CanUseToolFn canUseTool,
+            AssistantMessage parentMessage,
+            Consumer<ToolProgress<P>> onProgress) {
+        I parsedInput = parseInput(input);
+        return call(parsedInput, context, canUseTool, parentMessage, onProgress);
+    }
+
     @Override
     public CompletableFuture<ValidationResult> validateInput(I input, ToolUseContext context) {
         return CompletableFuture.completedFuture(ValidationResult.success());

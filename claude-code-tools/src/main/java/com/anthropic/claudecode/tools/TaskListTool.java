@@ -21,6 +21,11 @@ public final class TaskListTool extends AbstractTool<TaskListTool.Input, TaskLis
         super(TOOL_NAME, "List all tasks");
     }
 
+    @Override
+    public Input parseInput(Map<String, Object> input) {
+        return new Input();
+    }
+
     /**
      * Input schema (empty).
      */

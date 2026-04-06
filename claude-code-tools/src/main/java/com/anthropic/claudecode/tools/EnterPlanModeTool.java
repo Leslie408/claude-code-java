@@ -83,6 +83,11 @@ public class EnterPlanModeTool extends AbstractTool<EnterPlanModeTool.Input, Ent
         return "Entering plan mode";
     }
 
+    @Override
+    public Input parseInput(Map<String, Object> input) {
+        return new Input();
+    }
+
     // ==================== Input/Output/Progress ====================
 
     public record Input() {} // Empty input

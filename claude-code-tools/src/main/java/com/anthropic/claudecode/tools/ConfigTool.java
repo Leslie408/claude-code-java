@@ -34,6 +34,13 @@ public final class ConfigTool extends AbstractTool<ConfigTool.Input, ConfigTool.
         super(TOOL_NAME, "Get or set Claude Code settings");
     }
 
+    @Override
+    public Input parseInput(Map<String, Object> input) {
+        String setting = (String) input.get("setting");
+        Object value = input.get("value");
+        return new Input(setting, value);
+    }
+
     /**
      * Input schema.
      */

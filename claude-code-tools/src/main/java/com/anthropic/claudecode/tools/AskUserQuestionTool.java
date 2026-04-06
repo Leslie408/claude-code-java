@@ -189,6 +189,36 @@ public class AskUserQuestionTool extends AbstractTool<AskUserQuestionTool.Input,
         return "Asking: " + input.questions().get(0).header();
     }
 
+    @Override
+    @SuppressWarnings("unchecked")
+    public Input parseInput(Map<String, Object> input) {
+        List<Map<String, Object>> questionsData = (List<Map<String, Object>>) input.get("questions");
+        List<Question> questions = new ArrayList<>();
+
+        if (questionsData != null) {
+            for (Map<String, Object> qData : questionsData) {
+                String header = (String) qData.get("header");
+                String question = (String) qData.get("question");
+                boolean multiSelect = Boolean.TRUE.equals(qData.get("multiSelect"));
+
+                List<Map<String, Object>> optionsData = (List<Map<String, Object>>) qData.get("options");
+                List<QuestionOption> options = new ArrayList<>();
+                if (optionsData != null) {
+                    for (Map<String, Object> oData : optionsData) {
+                        String label = (String) oData.get("label");
+                        String desc = (String) oData.get("description");
+                        String preview = (String) oData.get("preview");
+                        options.add(new QuestionOption(label, desc, preview));
+                    }
+                }
+                questions.add(new Question(header, question, multiSelect, options));
+            }
+        }
+
+        Map<String, Object> metadata = (Map<String, Object>) input.get("metadata");
+        return new Input(questions, metadata != null ? metadata : Map.of());
+    }
+
     // ==================== Input/Output/Progress ====================
 
     public record Input(
