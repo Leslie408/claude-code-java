@@ -4,6 +4,8 @@
  */
 package com.anthropic.claudecode.services.api;
 
+import reactor.core.publisher.Flux;
+
 import java.util.*;
 import java.util.concurrent.*;
 import java.util.function.*;
@@ -14,15 +16,17 @@ import java.util.function.*;
 public class ApiClient {
     private final ApiClientConfig config;
     private final HttpClient httpClient;
+    private final StreamingHttpClient streamingHttpClient;
     private volatile boolean closed = false;
 
     public ApiClient(ApiClientConfig config) {
         this.config = config;
         this.httpClient = new HttpClient(config);
+        this.streamingHttpClient = new StreamingHttpClient(config);
     }
 
     /**
-     * Send a message to the API.
+     * Send a message to the API (non-streaming).
      */
     public CompletableFuture<ApiResponse> sendMessage(ApiRequest request) {
         if (closed) {
@@ -32,8 +36,21 @@ public class ApiClient {
     }
 
     /**
-     * Stream a message from the API.
+     * Stream a message from the API - returns Flux of SSE events.
+     * TRUE streaming: events arrive as they are received from the server.
      */
+    public Flux<SseEvent> streamMessageFlux(ApiRequest request) {
+        if (closed) {
+            return Flux.error(new ApiException("Client is closed"));
+        }
+        return streamingHttpClient.streamPost("/v1/messages", request);
+    }
+
+    /**
+     * Stream a message from the API - legacy method (fake streaming).
+     * @deprecated Use streamMessageFlux() for true streaming.
+     */
+    @Deprecated
     public CompletableFuture<ApiStreamingResponse> streamMessage(ApiRequest request) {
         if (closed) {
             return CompletableFuture.failedFuture(new ApiException("Client is closed"));
@@ -47,6 +64,7 @@ public class ApiClient {
     public void close() {
         closed = true;
         httpClient.close();
+        streamingHttpClient.close();
     }
 
     /**

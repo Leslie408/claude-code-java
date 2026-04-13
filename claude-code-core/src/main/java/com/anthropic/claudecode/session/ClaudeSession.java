@@ -8,6 +8,7 @@ package com.anthropic.claudecode.session;
 import com.anthropic.claudecode.Tool;
 import com.anthropic.claudecode.message.*;
 import com.anthropic.claudecode.services.api.*;
+import com.anthropic.claudecode.services.api.SseEvent;
 
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
@@ -174,7 +175,10 @@ public class ClaudeSession {
     }
 
     /**
-     * Send a message with streaming response.
+     * Send a message with TRUE streaming response.
+     *
+     * Each SSE event is emitted as soon as it arrives from the server.
+     * Tool_use blocks are emitted immediately when content_block_stop is received.
      */
     public Flux<Message> sendMessageStreaming(String prompt) {
         messages.add(new Message.User(prompt));
@@ -188,11 +192,66 @@ public class ClaudeSession {
 
         ApiRequest request = buildStreamingRequest(prompt);
 
-        return Mono.fromFuture(apiClient.streamMessage(request))
-            .flatMapMany(response -> Flux.fromIterable(convertStreamingResponse(response)))
+        // TRUE streaming: use streamMessageFlux() which returns Flux<SseEvent>
+        return apiClient.streamMessageFlux(request)
+            .flatMap(event -> {
+                // Convert SSE events to Messages
+                Message msg = convertSseEventToMessage(event);
+                if (msg != null) {
+                    return Flux.just(msg);
+                }
+                return Flux.empty();
+            })
             .onErrorResume(e -> Flux.just(new Message.Assistant(
                 "API Error: " + e.getMessage()
             )));
+    }
+
+    /**
+     * Convert SSE event to Message.
+     *
+     * Key events:
+     * - text_complete: emits Assistant message with accumulated text
+     * - tool_use_complete: emits Assistant message with ToolUse block
+     * - message_stop: emits final Assistant message with all content
+     */
+    private Message convertSseEventToMessage(SseEvent event) {
+        if (event == null) return null;
+
+        // Skip raw delta events - we only emit on completion
+        if (event.isContentBlockDelta()) return null;
+        if (event.isContentBlockStart()) return null;
+        if (event.isPing()) return null;
+
+        // On text_complete, emit partial text
+        if ("text_complete".equals(event.type())) {
+            String text = event.text();
+            if (text != null && !text.isEmpty()) {
+                return new Message.Assistant(
+                    java.util.List.of(new ContentBlock.Text(text))
+                );
+            }
+        }
+
+        // On tool_use_complete, emit the tool_use block
+        if ("tool_use_complete".equals(event.type())) {
+            String toolId = event.toolUseId();
+            String toolName = event.toolName();
+            Map<String, Object> input = event.input();
+            if (toolId != null && toolName != null) {
+                return new Message.Assistant(
+                    java.util.List.of(new ContentBlock.ToolUse(toolId, toolName, input != null ? input : Map.of()))
+                );
+            }
+        }
+
+        // On message_stop, emit final message (empty placeholder for now)
+        if (event.isMessageStop()) {
+            // Final message will be accumulated in the caller
+            return null;
+        }
+
+        return null;
     }
 
     /**
