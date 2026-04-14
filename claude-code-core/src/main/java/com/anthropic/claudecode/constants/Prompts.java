@@ -32,6 +32,19 @@ public final class Prompts {
         "haiku", "claude-haiku-4-5-20251001"
     );
 
+    // Knowledge cutoff dates by model prefix
+    public static final Map<String, String> KNOWLEDGE_CUTOFFS = Map.ofEntries(
+        Map.entry("claude-sonnet-4-6", "August 2025"),
+        Map.entry("claude-opus-4-6", "May 2025"),
+        Map.entry("claude-opus-4-5", "May 2025"),
+        Map.entry("claude-haiku-4-5", "February 2025"),
+        Map.entry("claude-opus-4", "January 2025"),
+        Map.entry("claude-sonnet-4", "January 2025"),
+        Map.entry("claude-3-7-sonnet", "February 2025"),
+        Map.entry("claude-3-5-sonnet", "April 2024"),
+        Map.entry("claude-3-5-haiku", "July 2024")
+    );
+
     // Default agent prompt
     public static final String DEFAULT_AGENT_PROMPT =
         "You are an agent for Claude Code, Anthropic's official CLI for Claude. " +
@@ -308,8 +321,39 @@ public final class Prompts {
         sb.append("Shell: ").append(shell).append("\n");
         sb.append("OS Version: ").append(osVersion).append("\n");
         sb.append("</env>\n");
+
+        // Add model info with knowledge cutoff
+        String cutoff = getKnowledgeCutoff(modelId);
         sb.append("You are powered by the model ").append(modelId).append(".");
+        if (cutoff != null) {
+            sb.append(" When searching for information, use web search for recent information - ");
+            sb.append("your knowledge cutoff is ").append(cutoff).append(".");
+        }
 
         return sb.toString();
+    }
+
+    /**
+     * Get knowledge cutoff date for a model.
+     */
+    public static String getKnowledgeCutoff(String modelId) {
+        if (modelId == null) {
+            return null;
+        }
+
+        // Check exact match first
+        if (KNOWLEDGE_CUTOFFS.containsKey(modelId)) {
+            return KNOWLEDGE_CUTOFFS.get(modelId);
+        }
+
+        // Check prefix match
+        for (Map.Entry<String, String> entry : KNOWLEDGE_CUTOFFS.entrySet()) {
+            if (modelId.startsWith(entry.getKey())) {
+                return entry.getValue();
+            }
+        }
+
+        // Default cutoff for unknown models
+        return "January 2025";
     }
 }
